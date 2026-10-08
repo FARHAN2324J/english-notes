@@ -4,13 +4,9 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { useMutation } from "convex/react";
 import { useRouter } from "next/navigation";
-import {
-    ArrowUpRight,
-} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
-import Link from "next/link";
 
 export default function CreateWorkspacePage() {
     const router = useRouter();
@@ -21,10 +17,8 @@ export default function CreateWorkspacePage() {
 
     const [name, setName] = useState("");
     const [author, setAuthor] = useState("");
-    const [error, setError] =
-        useState<string | null>(null);
-    const [isSubmitting, setIsSubmitting] =
-        useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     async function handleSubmit(
         event: FormEvent<HTMLFormElement>,
@@ -36,18 +30,19 @@ export default function CreateWorkspacePage() {
 
         try {
             const result = await createWorkspace({
-                name,
-                author,
+                name: name.trim(),
+                author: author.trim(),
             });
 
+            // Save the edit token using the exact key
+            // expected by the workspace page.
             localStorage.setItem(
-                `workspace - edit - token:${result.slug} `,
+                `workspace - edit - token:${ result.slug } `,
                 result.editToken,
             );
 
-            router.push(
-                `/workspace/${result.slug} `,
-            );
+            // Navigate to the workspace without extra spaces.
+            router.push(`/ workspace / ${ result.slug } `);
         } catch (error) {
             setError(
                 error instanceof Error
@@ -136,9 +131,11 @@ export default function CreateWorkspacePage() {
                         variant="accent"
                         size="md"
                         disabled={isSubmitting}
-                        className="w-full mt-5"
+                        className="mt-5 w-full"
                     >
-                        {isSubmitting ? "Creating..." : "Create Workspace"}
+                        {isSubmitting
+                            ? "Creating..."
+                            : "Create Workspace"}
                     </Button>
                 </div>
             </form>
