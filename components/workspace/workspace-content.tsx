@@ -1,11 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import Link from "next/link";
-import {
-  useSyncExternalStore,
-  useState,
-} from "react";
 import {
   ArrowLeft,
   Edit3,
@@ -21,27 +18,6 @@ import {
   ButtonLink,
 } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
-
-function subscribeToLocalStorage(
-  callback: () => void,
-) {
-  window.addEventListener("storage", callback);
-
-  return () => {
-    window.removeEventListener(
-      "storage",
-      callback,
-    );
-  };
-}
-
-function getServerSnapshot() {
-  return false;
-}
-
-function getClientSnapshot() {
-  return true;
-}
 
 export default function WorkspaceContent({
   slug,
@@ -64,25 +40,20 @@ export default function WorkspaceContent({
     api.notes.remove,
   );
 
-  const [
-    confirmingNoteId,
-    setConfirmingNoteId,
-  ] = useState<string | null>(null);
+  const [canEdit, setCanEdit] = useState(false);
+  const [confirmingNoteId, setConfirmingNoteId] =
+    useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const mounted = useSyncExternalStore(
-    subscribeToLocalStorage,
-    getClientSnapshot,
-    getServerSnapshot,
-  );
-
-  const canEdit =
-    mounted &&
-    Boolean(
-      workspace &&
-      localStorage.getItem(
-        `workspace-edit-token:${slug}`,
+  useEffect(() => {
+    setCanEdit(
+      Boolean(
+        localStorage.getItem(
+          `workspace-edit-token:${slug}`,
+        ),
       ),
     );
+  }, [slug, workspace]);
 
   if (workspace === undefined) {
     return (
@@ -100,10 +71,7 @@ export default function WorkspaceContent({
     return (
       <main className="min-h-screen bg-[#f1efe8]">
         <div className="mx-auto max-w-[1200px] px-5 py-20 sm:px-8 lg:px-10">
-          <ButtonLink
-            href="/"
-            variant="secondary"
-          >
+          <ButtonLink href="/" variant="secondary">
             <ArrowLeft size={16} />
             Back home
           </ButtonLink>
@@ -112,7 +80,6 @@ export default function WorkspaceContent({
             <p className="font-mono text-xs uppercase tracking-[0.16em] text-[#77746b]">
               404
             </p>
-
             <h1 className="mt-3 text-4xl font-black tracking-[-0.05em]">
               Workspace not found.
             </h1>
@@ -123,18 +90,19 @@ export default function WorkspaceContent({
   }
 
   async function handleConfirmDelete() {
-    if (!confirmingNoteId) {
-      return;
-    }
+    if (!confirmingNoteId || isDeleting) return;
 
     const editToken = localStorage.getItem(
       `workspace-edit-token:${slug}`,
     );
 
     if (!editToken) {
+      setCanEdit(false);
       setConfirmingNoteId(null);
       return;
     }
+
+    setIsDeleting(true);
 
     try {
       await removeNote({
@@ -144,10 +112,9 @@ export default function WorkspaceContent({
 
       setConfirmingNoteId(null);
     } catch (error) {
-      console.error(
-        "DELETE NOTE ERROR:",
-        error,
-      );
+      console.error("DELETE NOTE ERROR:", error);
+    } finally {
+      setIsDeleting(false);
     }
   }
 
@@ -159,14 +126,8 @@ export default function WorkspaceContent({
     <main className="min-h-screen bg-[#f1efe8]">
       <div className="mx-auto max-w-[1200px] px-5 sm:px-8 lg:px-10">
         <header className="flex flex-wrap items-center justify-between gap-4 py-5">
-          <ButtonLink
-            href="/"
-            variant="secondary"
-          >
-            <ArrowLeft
-              size={16}
-              className="transition-transform group-hover:-translate-x-1"
-            />
+          <ButtonLink href="/" variant="secondary">
+            <ArrowLeft size={16} />
             Home
           </ButtonLink>
 
@@ -180,10 +141,10 @@ export default function WorkspaceContent({
               >
                 <Edit3 size={15} />
                 Edit
-              </ButtonLink >
+              </ButtonLink>
             )}
-          </div >
-        </header >
+          </div>
+        </header>
 
         <section className="border-b-2 border-[#11110f] py-8">
           <div className="max-w-4xl">
@@ -191,7 +152,7 @@ export default function WorkspaceContent({
               Workspace
             </p>
 
-            <h1 className="mt-4 text-5xl font-black leading-[0.92] tracking-[-0.065em] sm:text-7xl lg:text-8xl">
+            <h1 className="mt-4 break-words text-5xl font-black leading-[0.92] tracking-[-0.065em] sm:text-7xl lg:text-8xl">
               {workspace.name}
             </h1>
 
@@ -210,10 +171,7 @@ export default function WorkspaceContent({
                 variant="accent"
                 size="lg"
               >
-                <Plus
-                  size={18}
-                  strokeWidth={2.5}
-                />
+                <Plus size={18} strokeWidth={2.5} />
                 Add Note
               </ButtonLink>
             </div>
@@ -229,9 +187,7 @@ export default function WorkspaceContent({
 
               <h2 className="mt-2 text-3xl font-black tracking-[-0.045em]">
                 {notes?.length ?? 0}{" "}
-                {notes?.length === 1
-                  ? "note"
-                  : "notes"}
+                {notes?.length === 1 ? "note" : "notes"}
               </h2>
             </div>
           </div>
@@ -244,19 +200,14 @@ export default function WorkspaceContent({
             </div>
           ) : notes.length === 0 ? (
             <div className="rounded-2xl border-2 border-dashed border-[#11110f] p-10 sm:p-14">
-              <FileText
-                size={28}
-                strokeWidth={1.8}
-              />
+              <FileText size={28} strokeWidth={1.8} />
 
               <h3 className="mt-5 text-2xl font-black tracking-[-0.04em]">
                 No notes yet.
               </h3>
 
               <p className="mt-2 max-w-md text-[#77746b]">
-                Start building this English
-                workspace by adding your first
-                note.
+                Start building this English workspace by adding your first note.
               </p>
 
               {canEdit && (
@@ -276,7 +227,7 @@ export default function WorkspaceContent({
               {notes.map((note, index) => (
                 <article
                   key={note._id}
-                  className="group rounded-2xl border-2 border-[#11110f] bg-[white] shadow-[5px_5px_0_#11110f] transition-all duration-200"
+                  className="group rounded-2xl border-2 border-[#11110f] bg-[#f4f1e8] shadow-[5px_5px_0_#11110f] transition-all duration-200 hover:-translate-y-1 hover:shadow-[7px_7px_0_#11110f]"
                 >
                   <div className="p-5 sm:p-6">
                     <div className="flex items-start justify-between gap-4">
@@ -285,37 +236,38 @@ export default function WorkspaceContent({
                           <span className="font-mono text-[10px] font-bold tracking-[0.14em] text-[#77746b]">
                             {String(index + 1).padStart(2, "0")}
                           </span>
-                          
 
-                          <span className="rounded-md border border-[#000] bg-[#d7ff3f] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em]">
-                            Grammar
+                          <span className="rounded-md border border-[#11110f] bg-[#d7ff3f] px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[0.12em]">
+                            {note.category}
                           </span>
                         </div>
 
-                        <h3 className="pt-3 break-words font-[var(--font-space-grotesk)] text-2xl font-black leading-[0.95] tracking-[-0.055em] sm:text-[2rem]">
+                        <h3 className="break-words pt-3 font-[var(--font-space-grotesk)] text-2xl font-black leading-[0.95] tracking-[-0.055em] sm:text-[2rem]">
                           {note.title}
                         </h3>
                       </div>
 
                       {canEdit && (
-                        <div className="flex shrink-0 gap-3">
+                        <div className="flex shrink-0 gap-2">
                           <ButtonLink
                             href={`/workspace/${slug}/notes/${note._id}/edit`}
                             variant="icon"
                             ariaLabel={`Edit ${note.title}`}
-                            className="!size-8 !rounded-lg hover:!text-white"
+                            className="!size-9 !rounded-lg"
                           >
-                            <Edit3 size={14} strokeWidth={2} />
+                            <Edit3 size={15} />
                           </ButtonLink>
 
                           <Button
                             type="button"
                             variant="icon"
                             aria-label={`Delete ${note.title}`}
-                            onClick={() => setConfirmingNoteId(note._id)}
-                            className="!size-8 !rounded-lg !shadow-[2px_2px_0_#11110f] !bg-red-500 !text-white"
+                            onClick={() =>
+                              setConfirmingNoteId(note._id)
+                            }
+                            className="!size-9 !rounded-lg !bg-red-500 !text-white"
                           >
-                            <Trash2 size={14} strokeWidth={2} />
+                            <Trash2 size={15} />
                           </Button>
                         </div>
                       )}
@@ -324,16 +276,13 @@ export default function WorkspaceContent({
                     <div className="mt-5 border-t-2 border-[#11110f] pt-5">
                       <NoteContent content={note.content} />
                     </div>
-
                   </div>
                 </article>
-
-
               ))}
             </div>
           )}
         </section>
-      </div >
+      </div>
 
       {confirmingNoteId && noteToDelete && (
         <div
@@ -362,9 +311,8 @@ export default function WorkspaceContent({
               <Button
                 type="button"
                 variant="secondary"
-                onClick={() =>
-                  setConfirmingNoteId(null)
-                }
+                disabled={isDeleting}
+                onClick={() => setConfirmingNoteId(null)}
               >
                 Cancel
               </Button>
@@ -372,15 +320,16 @@ export default function WorkspaceContent({
               <Button
                 type="button"
                 variant="danger"
+                disabled={isDeleting}
                 onClick={handleConfirmDelete}
               >
                 <Trash2 size={16} />
-                Delete Note
+                {isDeleting ? "Deleting..." : "Delete Note"}
               </Button>
             </div>
           </div>
         </div>
       )}
-    </main >
+    </main>
   );
 }
