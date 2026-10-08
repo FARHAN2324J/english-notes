@@ -41,7 +41,7 @@ export default function CreateWorkspacePage() {
             });
 
             localStorage.setItem(
-                `workspace - edit - token:${result.slug} `,
+                `workspace-edit-token:${result.slug}`,
                 result.editToken,
             );
 
